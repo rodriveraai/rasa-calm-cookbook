@@ -8,7 +8,9 @@ RED    := $(shell tput -Txterm setaf 1)
 
 # Recipe settings
 RECIPE_NAME := basic-tutorial
-PYTHON := $(shell which python)
+REPO_ROOT := $(shell git rev-parse --show-toplevel 2>/dev/null || echo "../..")
+VENV_NAME := .venv
+PYTHON := $(REPO_ROOT)/$(VENV_NAME)/bin/python
 RASA := $(PYTHON) -m rasa
 UV := $(shell which uv)
 
@@ -19,11 +21,21 @@ ENV_FILE := .env
 ENV_EXAMPLE := .env.example
 
 # Include environment variables if .env exists
--include $(ENV_FILE)
+ifneq (,$(wildcard $(ENV_FILE)))
+    include $(ENV_FILE)
+    export
+endif
 
 help: ## Show this help message
 	@echo ''
 	@echo '${YELLOW}$(RECIPE_NAME) - Recipe Commands${RESET}'
+	@echo ''
+	@echo '${YELLOW}First Time Setup (run from repository root):${RESET}'
+	@echo '  1. ${GREEN}cd $(REPO_ROOT)${RESET}'
+	@echo '  2. ${GREEN}make setup${RESET}              - Create virtual environment'
+	@echo '  3. ${GREEN}source .venv/bin/activate${RESET} - Activate environment'
+	@echo '  4. ${GREEN}cd recipes/level-1-basic/basic-tutorial${RESET}'
+	@echo '  5. ${GREEN}make setup-recipe${RESET}       - Install recipe dependencies'
 	@echo ''
 	@echo '${YELLOW}Setup:${RESET}'
 	@echo '  Setup:        ${GREEN}make setup-recipe${RESET}    - Install recipe dependencies'
@@ -47,8 +59,9 @@ help: ## Show this help message
 	@echo '  Clean:        ${GREEN}make clean${RESET}           - Clean generated files'
 	@echo '  Reset:        ${GREEN}make reset${RESET}           - Reset to fresh state'
 	@echo '  Status:       ${GREEN}make status${RESET}          - Show environment status'
+	@echo '  Check venv:   ${GREEN}make check-venv${RESET}      - Check virtual environment'
 	@echo ''
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  ${YELLOW}%-15s${GREEN}%s${RESET}\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  ${YELLOW}%-15s${GREEN}%s${RESET}\n", $1, $2}' $(MAKEFILE_LIST)
 	@echo ''
 
 .PHONY: setup-env
@@ -69,37 +82,50 @@ setup-env: ## Create .env file from template
 			echo "DEBUG=false" >> $(ENV_FILE); \
 			echo "${YELLOW}Please edit $(ENV_FILE) with your actual credentials${RESET}"; \
 		fi; \
+		echo "${YELLOW}After editing, reload with: source $(ENV_FILE) or restart make${RESET}"; \
 	else \
 		echo "${GREEN}$(ENV_FILE) already exists${RESET}"; \
 	fi
 
-.PHONY: check-env
-check-env: ## Check environment and prerequisites
-	@echo "${BLUE}Checking environment...${RESET}"
-	@# Load environment variables if .env exists
-	@if [ -f "$(ENV_FILE)" ]; then \
-		echo "Loading environment from $(ENV_FILE)..."; \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs); \
-	fi
-	@# Check for required environment variables
-	@if [ -z "$$RASA_LICENSE" ]; then \
-		echo "${RED}Error: RASA_LICENSE environment variable not set${RESET}"; \
-		echo "Options:"; \
-		echo "  1. Run: ${GREEN}make setup-env${RESET} and edit .env file"; \
-		echo "  2. Export directly: ${GREEN}export RASA_LICENSE='your-license-key'${RESET}"; \
+.PHONY: check-venv
+check-venv: ## Check if virtual environment is properly set up
+	@echo "${BLUE}Checking virtual environment setup...${RESET}"
+	@if [ ! -f "$(PYTHON)" ]; then \
+		echo "${RED}✗ Virtual environment not found at $(PYTHON)${RESET}"; \
+		echo "${YELLOW}Please run the following from repository root:${RESET}"; \
+		echo "  1. ${GREEN}cd $(REPO_ROOT)${RESET}"; \
+		echo "  2. ${GREEN}make setup${RESET}"; \
+		echo "  3. ${GREEN}source .venv/bin/activate${RESET}"; \
 		exit 1; \
 	fi
+	@echo "${GREEN}✓ Virtual environment found at $(PYTHON)${RESET}"
+	@$(PYTHON) --version
+	@echo "Virtual environment path: $(PYTHON)"
+
+.PHONY: check-env
+check-env: check-venv ## Check environment and prerequisites
+	@echo "${BLUE}Checking environment...${RESET}"
+	@# Check for required environment variables
+	@if [ -z "$(RASA_LICENSE)" ]; then \
+		echo "${RED}Error: RASA_LICENSE environment variable not set${RESET}"; \
+		echo "Options:"; \
+		echo "  1. Edit $(ENV_FILE) file and restart make"; \
+		echo "  2. Export directly: ${GREEN}export RASA_LICENSE='your-license-key'${RESET}"; \
+		echo "  3. Run with env: ${GREEN}RASA_LICENSE='key' make train${RESET}"; \
+		exit 1; \
+	fi
+	@echo "${GREEN}✓ RASA_LICENSE is set${RESET}"
 	@# Check for LLM provider credentials
 	@provider_found=false; \
-	if [ -n "$$OPENAI_API_KEY" ]; then \
+	if [ -n "$(OPENAI_API_KEY)" ]; then \
 		echo "${GREEN}✓ OpenAI API key found${RESET}"; \
 		provider_found=true; \
 	fi; \
-	if [ -n "$$AZURE_OPENAI_ENDPOINT" ] && [ -n "$$AZURE_OPENAI_API_KEY" ]; then \
+	if [ -n "$(AZURE_OPENAI_ENDPOINT)" ] && [ -n "$(AZURE_OPENAI_API_KEY)" ]; then \
 		echo "${GREEN}✓ Azure OpenAI credentials found${RESET}"; \
 		provider_found=true; \
 	fi; \
-	if [ -n "$$LOCAL_LLM_ENDPOINT" ]; then \
+	if [ -n "$(LOCAL_LLM_ENDPOINT)" ]; then \
 		echo "${GREEN}✓ Local LLM endpoint configured${RESET}"; \
 		provider_found=true; \
 	fi; \
@@ -131,22 +157,22 @@ status: ## Show environment status
 	fi
 	@echo ""
 	@echo "${YELLOW}Environment Variables:${RESET}"
-	@if [ -n "$$RASA_LICENSE" ]; then \
+	@if [ -n "$(RASA_LICENSE)" ]; then \
 		echo "  ✓ RASA_LICENSE is set"; \
 	else \
 		echo "  ✗ RASA_LICENSE not set"; \
 	fi
-	@if [ -n "$$OPENAI_API_KEY" ]; then \
+	@if [ -n "$(OPENAI_API_KEY)" ]; then \
 		echo "  ✓ OPENAI_API_KEY is set"; \
 	else \
 		echo "  ✗ OPENAI_API_KEY not set"; \
 	fi
-	@if [ -n "$$AZURE_OPENAI_ENDPOINT" ]; then \
+	@if [ -n "$(AZURE_OPENAI_ENDPOINT)" ]; then \
 		echo "  ✓ AZURE_OPENAI_ENDPOINT is set"; \
 	else \
 		echo "  - AZURE_OPENAI_ENDPOINT not set"; \
 	fi
-	@if [ -n "$$LOCAL_LLM_ENDPOINT" ]; then \
+	@if [ -n "$(LOCAL_LLM_ENDPOINT)" ]; then \
 		echo "  ✓ LOCAL_LLM_ENDPOINT is set"; \
 	else \
 		echo "  - LOCAL_LLM_ENDPOINT not set"; \
@@ -158,21 +184,27 @@ status: ## Show environment status
 	else \
 		echo "  ✗ uv not found"; \
 	fi
-	@if $(PYTHON) -c "import rasa" 2>/dev/null; then \
-		echo "  ✓ Rasa is installed"; \
+	@if [ -f "$(PYTHON)" ]; then \
+		echo "  ✓ Python virtual environment found: $(PYTHON)"; \
+		if $(PYTHON) -c "import rasa" 2>/dev/null; then \
+			echo "  ✓ Rasa is installed in venv"; \
+		else \
+			echo "  ✗ Rasa not installed in venv"; \
+		fi; \
 	else \
-		echo "  ✗ Rasa not installed"; \
+		echo "  ✗ Virtual environment not found at $(PYTHON)"; \
+		echo "    Run 'make setup' from repository root first"; \
 	fi
 
 .PHONY: setup-recipe
-setup-recipe: setup-env ## Install recipe-specific dependencies
+setup-recipe: check-venv setup-env ## Install recipe-specific dependencies
 	@echo "${BLUE}Installing recipe dependencies...${RESET}"
 	@if [ -f "pyproject.toml" ]; then \
 		echo "Installing dependencies from pyproject.toml..."; \
-		$(UV) pip install -e .; \
+		$(UV) pip install -e . --python $(PYTHON); \
 	else \
 		echo "${YELLOW}No pyproject.toml found, installing base dependencies${RESET}"; \
-		$(UV) pip install rasa-pro rasa-sdk openai; \
+		$(UV) pip install rasa-pro rasa-sdk openai --python $(PYTHON); \
 	fi
 	@echo "${GREEN}✓ Recipe dependencies installed${RESET}"
 
@@ -181,7 +213,7 @@ config-openai: ## Use OpenAI configuration
 	@echo "${BLUE}Setting up OpenAI configuration...${RESET}"
 	@cp config-openai.yml config.yml
 	@echo "${GREEN}✓ OpenAI configuration active${RESET}"
-	@if [ -z "$$OPENAI_API_KEY" ]; then \
+	@if [ -z "$(OPENAI_API_KEY)" ]; then \
 		echo "${YELLOW}⚠ Remember to set OPENAI_API_KEY environment variable${RESET}"; \
 		echo "Add it to your .env file or export it directly"; \
 	fi
@@ -191,7 +223,7 @@ config-azure: ## Use Azure OpenAI configuration
 	@echo "${BLUE}Setting up Azure OpenAI configuration...${RESET}"
 	@cp config-azure.yml config.yml
 	@echo "${GREEN}✓ Azure OpenAI configuration active${RESET}"
-	@if [ -z "$$AZURE_OPENAI_ENDPOINT" ] || [ -z "$$AZURE_OPENAI_API_KEY" ]; then \
+	@if [ -z "$(AZURE_OPENAI_ENDPOINT)" ] || [ -z "$(AZURE_OPENAI_API_KEY)" ]; then \
 		echo "${YELLOW}⚠ Remember to set Azure OpenAI environment variables:${RESET}"; \
 		echo "  AZURE_OPENAI_ENDPOINT"; \
 		echo "  AZURE_OPENAI_API_KEY"; \
@@ -203,78 +235,44 @@ config-local: ## Use local LLM configuration
 	@cp config-local.yml config.yml
 	@echo "${GREEN}✓ Local LLM configuration active${RESET}"
 	@echo "${YELLOW}Make sure your local LLM server is running${RESET}"
-	@if [ -n "$$LOCAL_LLM_ENDPOINT" ]; then \
-		echo "Configured endpoint: $$LOCAL_LLM_ENDPOINT"; \
+	@if [ -n "$(LOCAL_LLM_ENDPOINT)" ]; then \
+		echo "Configured endpoint: $(LOCAL_LLM_ENDPOINT)"; \
 	else \
 		echo "Default endpoint: http://localhost:8000/v1"; \
 	fi
 
-.PHONY: load-env
-load-env: ## Load environment variables from .env file
-	@if [ -f "$(ENV_FILE)" ]; then \
-		echo "${BLUE}Loading environment variables from $(ENV_FILE)...${RESET}"; \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs); \
-		echo "${GREEN}✓ Environment variables loaded${RESET}"; \
-	else \
-		echo "${YELLOW}No $(ENV_FILE) file found. Run 'make setup-env' first.${RESET}"; \
-	fi
-
 .PHONY: train
-train: check-env load-env ## Train the Rasa model
+train: check-env ## Train the Rasa model
 	@echo "${BLUE}Training Rasa model...${RESET}"
-	@if [ -f "$(ENV_FILE)" ]; then \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) train; \
-	else \
-		$(RASA) train; \
-	fi
+	$(RASA) train
 	@echo "${GREEN}✓ Model training completed${RESET}"
 
 .PHONY: shell
-shell: check-env load-env ## Start Rasa shell
+shell: check-env ## Start Rasa shell
 	@echo "${BLUE}Starting Rasa shell...${RESET}"
-	@if [ -f "$(ENV_FILE)" ]; then \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) shell; \
-	else \
-		$(RASA) shell; \
-	fi
+	$(RASA) shell
 
 .PHONY: inspect
-inspect: check-env load-env ## Start Rasa inspector (recommended for testing)
+inspect: check-env ## Start Rasa inspector (recommended for testing)
 	@echo "${BLUE}Starting Rasa inspector...${RESET}"
 	@echo "${YELLOW}Inspector will open in your browser${RESET}"
-	@if [ -f "$(ENV_FILE)" ]; then \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) inspect; \
-	else \
-		$(RASA) inspect; \
-	fi
+	$(RASA) inspect
 
 .PHONY: run
-run: check-env load-env ## Start Rasa server
+run: check-env ## Start Rasa server
 	@echo "${BLUE}Starting Rasa server...${RESET}"
-	@if [ -f "$(ENV_FILE)" ]; then \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) run --enable-api --cors "*"; \
-	else \
-		$(RASA) run --enable-api --cors "*"; \
-	fi
+	$(RASA) run --enable-api --cors "*"
 
 .PHONY: run-actions
-run-actions: load-env ## Start action server
+run-actions: ## Start action server
 	@echo "${BLUE}Starting action server...${RESET}"
-	@if [ -f "$(ENV_FILE)" ]; then \
-		export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) run actions; \
-	else \
-		$(RASA) run actions; \
-	fi
+	$(RASA) run actions
 
 .PHONY: test-e2e
-test-e2e: check-env load-env ## Run end-to-end tests
+test-e2e: check-env ## Run end-to-end tests
 	@echo "${BLUE}Running end-to-end tests...${RESET}"
 	@if [ -f "tests/e2e_test_cases.yml" ]; then \
-		if [ -f "$(ENV_FILE)" ]; then \
-			export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) test e2e tests/e2e_test_cases.yml; \
-		else \
-			$(RASA) test e2e tests/e2e_test_cases.yml; \
-		fi; \
+		$(RASA) test e2e tests/e2e_test_cases.yml; \
 		echo "${GREEN}✓ E2E tests completed${RESET}"; \
 	else \
 		echo "${YELLOW}No E2E tests found${RESET}"; \
@@ -284,11 +282,7 @@ test-e2e: check-env load-env ## Run end-to-end tests
 validate: check-env ## Validate configuration files
 	@echo "${BLUE}Validating configuration...${RESET}"
 	@if [ -f "config.yml" ]; then \
-		if [ -f "$(ENV_FILE)" ]; then \
-			export $$(grep -v '^#' $(ENV_FILE) | xargs) && $(RASA) data validate; \
-		else \
-			$(RASA) data validate; \
-		fi; \
+		$(RASA) data validate; \
 		echo "${GREEN}✓ Configuration is valid${RESET}"; \
 	else \
 		echo "${RED}No config.yml found${RESET}"; \
@@ -319,14 +313,14 @@ quick-start: ## Quick start: setup, config, and train
 	@echo "${BLUE}Quick start for $(RECIPE_NAME)...${RESET}"
 	@make setup-recipe
 	@make config-openai
-	@if [ -f "$(ENV_FILE)" ]; then \
-		echo "${BLUE}Environment file exists, proceeding with training...${RESET}"; \
+	@if [ -f "$(ENV_FILE)" ] && [ -n "$(RASA_LICENSE)" ]; then \
+		echo "${BLUE}Environment configured, proceeding with training...${RESET}"; \
 		make train; \
 	else \
-		echo "${YELLOW}No .env file found. Please:${RESET}"; \
-		echo "  1. Run: ${GREEN}make setup-env${RESET}"; \
-		echo "  2. Edit .env with your credentials"; \
-		echo "  3. Run: ${GREEN}make train${RESET}"; \
+		echo "${YELLOW}Environment not properly configured. Please:${RESET}"; \
+		echo "  1. Edit $(ENV_FILE) with your credentials"; \
+		echo "  2. Run: ${GREEN}make train${RESET}"; \
+		echo "  3. Or use: ${GREEN}RASA_LICENSE='key' OPENAI_API_KEY='key' make train${RESET}"; \
 		exit 1; \
 	fi
 	@echo ""
