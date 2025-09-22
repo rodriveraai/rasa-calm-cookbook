@@ -215,3 +215,5 @@ __marimo__/
 
 # But keep example files
 !.env.example
+
+.DS_Store
