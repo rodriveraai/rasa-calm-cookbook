@@ -5,183 +5,59 @@ A comprehensive collection of recipes for building conversational AI assistants 
 ## Repository Structure
 
 ```
-rasa-calm-cookbook/
-├── README.md
-├── pyproject.toml
-├── Makefile
+Rasa CALM Cookbook Structure:
+
+.
+├── .env.example
 ├── .gitignore
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-├── recipes/
-│   ├── level-1-basic/
-│   │   ├── basic-tutorial/
-│   │   │   ├── README.md
-│   │   │   ├── pyproject.toml
-│   │   │   ├── config-openai.yml
-│   │   │   ├── config-azure.yml
-│   │   │   ├── config-local.yml
-│   │   │   ├── domain.yml
-│   │   │   ├── endpoints.yml
-│   │   │   ├── data/
-│   │   │   │   └── flows.yml
-│   │   │   ├── actions/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── actions.py
-│   │   │   ├── tests/
-│   │   │   │   └── e2e_test_cases.yml
-│   │   │   └── conversations/
-│   │   │       └── sample_conversations.md
-│   │   └── custom-actions/
-│   │       ├── README.md
-│   │       ├── pyproject.toml
-│   │       ├── config-openai.yml
-│   │       ├── config-azure.yml
-│   │       ├── config-local.yml
-│   │       ├── domain.yml
-│   │       ├── endpoints.yml
-│   │       ├── data/
-│   │       │   └── flows.yml
-│   │       ├── actions/
-│   │       │   ├── __init__.py
-│   │       │   └── actions.py
-│   │       ├── tests/
-│   │       │   └── e2e_test_cases.yml
-│   │       └── conversations/
-│   │           └── sample_conversations.md
-│   ├── level-2-intermediate/
-│   │   ├── voice-assistant/
-│   │   │   ├── README.md
-│   │   │   ├── pyproject.toml
-│   │   │   ├── config-openai.yml
-│   │   │   ├── config-azure.yml
-│   │   │   ├── config-local.yml
-│   │   │   ├── domain.yml
-│   │   │   ├── endpoints.yml
-│   │   │   ├── credentials.yml
-│   │   │   ├── data/
-│   │   │   │   └── flows.yml
-│   │   │   ├── actions/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── actions.py
-│   │   │   ├── tests/
-│   │   │   │   └── e2e_test_cases.yml
-│   │   │   └── conversations/
-│   │   │       └── sample_conversations.md
-│   │   ├── enterprise-search/
-│   │   │   ├── README.md
-│   │   │   ├── pyproject.toml
-│   │   │   ├── config-openai.yml
-│   │   │   ├── config-azure.yml
-│   │   │   ├── config-local.yml
-│   │   │   ├── domain.yml
-│   │   │   ├── endpoints.yml
-│   │   │   ├── data/
-│   │   │   │   ├── flows.yml
-│   │   │   │   └── knowledge/
-│   │   │   │       ├── faq.md
-│   │   │   │       └── product_docs.md
-│   │   │   ├── actions/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── actions.py
-│   │   │   ├── tests/
-│   │   │   │   └── e2e_test_cases.yml
-│   │   │   └── conversations/
-│   │   │       └── sample_conversations.md
-│   │   └── multi-llm-routing/
-│   │       ├── README.md
-│   │       ├── pyproject.toml
-│   │       ├── config-multi-provider.yml
-│   │       ├── config-azure-regions.yml
-│   │       ├── config-cost-optimization.yml
-│   │       ├── domain.yml
-│   │       ├── endpoints.yml
-│   │       ├── data/
-│   │       │   └── flows.yml
-│   │       ├── actions/
-│   │       │   ├── __init__.py
-│   │       │   └── actions.py
-│   │       ├── tests/
-│   │       │   └── e2e_test_cases.yml
-│   │       └── conversations/
-│   │           └── sample_conversations.md
-│   └── level-3-advanced/
-│       ├── fine-tuning/
-│       │   ├── README.md
-│       │   ├── pyproject.toml
-│       │   ├── config-base.yml
-│       │   ├── config-finetuned.yml
-│       │   ├── domain.yml
-│       │   ├── endpoints.yml
-│       │   ├── data/
-│       │   │   └── flows.yml
-│       │   ├── actions/
-│       │   │   ├── __init__.py
-│       │   │   └── actions.py
-│       │   ├── tests/
-│       │   │   └── e2e_test_cases.yml
-│       │   ├── notebooks/
-│       │   │   └── fine_tuning_example.ipynb
-│       │   └── conversations/
-│       │       └── sample_conversations.md
-│       ├── deployment/
-│       │   ├── README.md
-│       │   ├── pyproject.toml
-│       │   ├── docker/
-│       │   │   ├── Dockerfile
-│       │   │   ├── Dockerfile.actions
-│       │   │   └── docker-compose.yml
-│       │   ├── kubernetes/
-│       │   │   ├── values.yml
-│       │   │   ├── secrets.yml
-│       │   │   └── deployment.yml
-│       │   ├── config.yml
-│       │   ├── domain.yml
-│       │   ├── endpoints.yml
-│       │   ├── data/
-│       │   │   └── flows.yml
-│       │   ├── actions/
-│       │   │   ├── __init__.py
-│       │   │   └── actions.py
-│       │   ├── tests/
-│       │   │   └── e2e_test_cases.yml
-│       │   └── conversations/
-│       │       └── sample_conversations.md
-│       └── coexistence-migration/
-│           ├── README.md
-│           ├── pyproject.toml
-│           ├── config-coexistence.yml
-│           ├── config-pure-calm.yml
-│           ├── domain.yml
-│           ├── endpoints.yml
-│           ├── data/
-│           │   ├── flows.yml
-│           │   ├── stories.yml
-│           │   ├── rules.yml
-│           │   └── nlu.yml
-│           ├── actions/
-│           │   ├── __init__.py
-│           │   └── actions.py
-│           ├── tests/
-│           │   └── e2e_test_cases.yml
-│           └── conversations/
-│               └── sample_conversations.md
-├── docs/
-│   ├── getting-started.md
-│   ├── recipe-guide.md
-│   ├── configuration-guide.md
-│   └── troubleshooting.md
-└── scripts/
-    ├── setup-recipe.sh
-    ├── validate-recipes.py
-    └── generate-docs.py
+├── Makefile
+├── pyproject.toml
+├── README.md
+└── recipes
+    ├── level-1-basic
+    │   └── basic-tutorial
+    │       ├── .env
+    │       ├── .env.example
+    │       ├── actions
+    │       │   └── actions.py
+    │       ├── config-azure.yml
+    │       ├── config-local.yml
+    │       ├── config-openai.yml
+    │       ├── conversations
+    │       │   └── sample_conversations.md
+    │       ├── data
+    │       │   └── flows.yml
+    │       ├── domain.yml
+    │       ├── endpoints.yml
+    │       ├── Makefile
+    │       ├── pyproject.toml
+    │       ├── README.md
+    │       └── tests
+    │           └── e2e_test_cases.yml
+    ├── level-2-intermediate
+    │   ├── enterprise-search
+    │   │   └── README.md
+    │   ├── multi-llm-routing
+    │   │   └── README.md
+    │   └── voice-assistant
+    │       └── README.md
+    └── level-3-advanced
+        ├── coexistence-migration
+        │   └── README.md
+        ├── deployment
+        │   └── README.md
+        └── fine-tuning
+            └── README.md
+
+16 directories, 25 files
+
 ```
 
 ## Quick Start
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ducktyper-ai/rasa-calm-cookbook.git
+   git clone https://github.com/rodriveraai/rasa-calm-cookbook.git
    cd rasa-calm-cookbook
    ```
 
@@ -194,7 +70,7 @@ rasa-calm-cookbook/
 3. **Choose a recipe and get started**
    ```bash
    cd recipes/level-1-basic/basic-tutorial
-   make quick-start
+   make setup-recipe
    ```
 
 ## Available Recipes
@@ -239,4 +115,4 @@ This project is licensed under the AGPL-3.0 License - see the LICENSE file for d
 
 - [Rasa Documentation](https://docs.rasa.com)
 - [Rasa Community Forum](https://forum.rasa.com)
-- [GitHub Issues](https://github.com/ducktyper-ai/rasa-calm-cookbook/issues)
+- [GitHub Issues](https://github.com/rodriveraai/rasa-calm-cookbook/issues)

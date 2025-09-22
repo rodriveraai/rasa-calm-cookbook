@@ -467,13 +467,13 @@ structure: ## Show project structure
 	@echo "${YELLOW}Rasa CALM Cookbook Structure:${RESET}"
 	@echo "${BLUE}"
 	@if command -v tree > /dev/null; then \
-	  tree -a -I '.git|.venv|__pycache__|*.pyc|*.pyo|*.pyd|.pytest_cache|.ruff_cache|.coverage|htmlcov|models|logs|*.tar.gz' -L 3; \
+		tree -a -I '.git|.venv|__pycache__|*.pyc|*.pyo|*.pyd|.pytest_cache|.ruff_cache|.coverage|htmlcov'; \
 	else \
-	  find . -not -path '*/\.*' -not -path '*.pyc' -not -path '*/__pycache__/*' \
-	    -not -path './.venv/*' -not -path './build/*' -not -path './dist/*' \
-	    -not -path './models/*' -not -path './logs/*' \
-	    | head -50 | sort | \
-	    sed -e "s/[^-][^\/]*\// │   /g" -e "s/├── /├── /" -e "s/└── /└── /"; \
+		find . -not -path '*/\.*' -not -path '*.pyc' -not -path '*/__pycache__/*' \
+			-not -path './.venv/*' -not -path './build/*' -not -path './dist/*' \
+			-not -path './*.egg-info/*' \
+			| sort | \
+			sed -e "s/[^-][^\/]*\// │   /g" -e "s/├── /│── /" -e "s/└── /└── /"; \
 	fi
 	@echo "${RESET}"
 
@@ -544,5 +544,7 @@ check-env-all: ## Check environment setup for all recipes
 		echo "${YELLOW}⚠ $$error_count recipes missing .env files${RESET}"; \
 		echo "Run 'make setup-env-all' to create them"; \
 	fi
+
+
 
 .DEFAULT_GOAL := help
