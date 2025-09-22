@@ -81,13 +81,17 @@ advanced = ["rasa-calm-cookbook[openai,azure,voice,search,deployment]"]
 all = ["rasa-calm-cookbook[openai,azure,voice,search,deployment,dev]"]
 
 [project.urls]
-"Homepage" = "https://github.com/ducktyper-ai/rasa-calm-cookbook"
-"Documentation" = "https://github.com/ducktyper-ai/rasa-calm-cookbook/docs"
-"Repository" = "https://github.com/ducktyper-ai/rasa-calm-cookbook"
-"Bug Tracker" = "https://github.com/ducktyper-ai/rasa-calm-cookbook/issues"
-"Discussions" = "https://github.com/ducktyper-ai/rasa-calm-cookbook/discussions"
+"Homepage" = "https://github.com/rodriveraai/rasa-calm-cookbook"
+"Documentation" = "https://github.com/rodriveraai/rasa-calm-cookbook/docs"
+"Repository" = "https://github.com/rodriveraai/rasa-calm-cookbook"
+"Bug Tracker" = "https://github.com/rodriveraai/rasa-calm-cookbook/issues"
+"Discussions" = "https://github.com/rodriveraai/rasa-calm-cookbook/discussions"
 
-# Build configuration
+# Build configuration - FIX: Specify what to include in the package (recipes collection)
+[tool.hatch.build.targets.wheel]
+include = ["recipes"]
+artifacts = ["recipes/**/*"]
+
 [tool.hatch.build]
 exclude = [
     "/.github",

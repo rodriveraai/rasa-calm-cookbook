@@ -493,4 +493,56 @@ quick-start: ## Quick start with basic tutorial
 	@echo "  3. ${GREEN}make train${RESET}"
 	@echo "  4. ${GREEN}make inspect${RESET}"
 
+# Add to root Makefile
+
+.PHONY: setup-env-all
+setup-env-all: ## Create .env files for all recipes
+	@echo "${BLUE}Setting up environment files for all recipes...${RESET}"
+	@if [ ! -f ".env" ]; then \
+		echo "Creating root .env file..."; \
+		cp .env.example .env; \
+	fi
+	@for level in $(RECIPE_LEVELS); do \
+		if [ -d "recipes/$$level" ]; then \
+			for recipe in recipes/$$level/*/; do \
+				if [ -d "$$recipe" ] && [ -f "$$recipe/.env.example" ]; then \
+					recipe_name=$$(basename "$$recipe"); \
+					if [ ! -f "$$recipe/.env" ]; then \
+						echo "Creating .env for $$level/$$recipe_name..."; \
+						cp "$$recipe/.env.example" "$$recipe/.env"; \
+					fi; \
+				fi; \
+			done; \
+		fi; \
+	done
+	@echo "${GREEN}✓ Environment files created${RESET}"
+	@echo "${YELLOW}Please edit .env files with your actual credentials${RESET}"
+
+.PHONY: check-env-all
+check-env-all: ## Check environment setup for all recipes
+	@echo "${BLUE}Checking environment for all recipes...${RESET}"
+	@error_count=0; \
+	for level in $(RECIPE_LEVELS); do \
+		if [ -d "recipes/$$level" ]; then \
+			for recipe in recipes/$$level/*/; do \
+				if [ -d "$$recipe" ]; then \
+					recipe_name=$$(basename "$$recipe"); \
+					echo "Checking $$level/$$recipe_name..."; \
+					if [ -f "$$recipe/.env" ]; then \
+						echo "  ✓ .env exists"; \
+					else \
+						echo "  ✗ .env missing"; \
+						error_count=$$((error_count + 1)); \
+					fi; \
+				fi; \
+			done; \
+		fi; \
+	done; \
+	if [ $$error_count -eq 0 ]; then \
+		echo "${GREEN}✓ All recipes have environment files${RESET}"; \
+	else \
+		echo "${YELLOW}⚠ $$error_count recipes missing .env files${RESET}"; \
+		echo "Run 'make setup-env-all' to create them"; \
+	fi
+
 .DEFAULT_GOAL := help
