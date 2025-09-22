@@ -1,0 +1,76 @@
+test_cases:
+  - test_case: successful money transfer
+    steps:
+      - user: "I want to send money"
+        assertions:
+          - flow_started: "transfer_money"
+          - bot_uttered:
+              utter_name: "utter_ask_recipient"
+      
+      - user: "to Jen"
+        assertions:
+          - slot_was_set:
+              - name: "recipient"
+                value: "Jen"
+          - bot_uttered:
+              utter_name: "utter_ask_amount"
+      
+      - user: "$50"
+        assertions:
+          - slot_was_set:
+              - name: "amount"
+                value: "$50"
+          - action_executed: "action_check_sufficient_funds"
+          - slot_was_set:
+              - name: "has_sufficient_funds"
+                value: true
+          - bot_uttered:
+              utter_name: "utter_ask_final_confirmation"
+      
+      - user: "yes"
+        assertions:
+          - slot_was_set:
+              - name: "final_confirmation"
+                value: true
+          - bot_uttered:
+              utter_name: "utter_transfer_complete"
+          - flow_completed: "transfer_money"
+
+  - test_case: insufficient funds
+    steps:
+      - user: "I want to transfer money"
+      - user: "Alice"
+      - user: "$2000"
+        assertions:
+          - action_executed: "action_check_sufficient_funds"
+          - slot_was_set:
+              - name: "has_sufficient_funds"
+                value: false
+          - bot_uttered:
+              utter_name: "utter_insufficient_funds"
+
+  - test_case: user cancels transfer
+    steps:
+      - user: "Send money to Bob"
+      - user: "$100"
+      - user: "no"
+        assertions:
+          - slot_was_set:
+              - name: "final_confirmation"
+                value: false
+          - bot_uttered:
+              utter_name: "utter_transfer_cancelled"
+
+  - test_case: all at once
+    steps:
+      - user: "I want to send $75 to Sarah"
+        assertions:
+          - flow_started: "transfer_money"
+          - slot_was_set:
+              - name: "recipient"
+                value: "Sarah"
+          - slot_was_set:
+              - name: "amount"
+                value: "$75"
+          - bot_uttered:
+              utter_name: "utter_ask_final_confirmation"
