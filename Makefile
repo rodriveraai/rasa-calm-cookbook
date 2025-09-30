@@ -326,31 +326,123 @@ run-actions: ## Start action server
 .PHONY: test-e2e
 test-e2e: check-license ## Run end-to-end tests
 	@if [ -f "tests/e2e_test_cases.yml" ]; then \
-	  echo "${BLUE}Running E2E tests in current directory...${RESET}"; \
-	  $(PYTHON) -m rasa test e2e tests/e2e_test_cases.yml; \
+		echo "${BLUE}Running E2E tests in current directory...${RESET}"; \
+		if [ ! -d "models" ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
+			echo "${YELLOW}No trained model found. Training model first...${RESET}"; \
+			$(PYTHON) -m rasa train; \
+		fi; \
+		echo "${BLUE}Starting action server in background...${RESET}"; \
+		$(PYTHON) -m rasa run actions > /dev/null 2>&1 & \
+		ACTION_PID=$$!; \
+		echo "Action server PID: $$ACTION_PID"; \
+		sleep 5; \
+		echo "${BLUE}Running E2E tests...${RESET}"; \
+		$(PYTHON) -m rasa test e2e tests/e2e_test_cases.yml; \
+		TEST_EXIT=$$?; \
+		echo "${BLUE}Stopping action server (PID: $$ACTION_PID)...${RESET}"; \
+		kill $$ACTION_PID 2>/dev/null || true; \
+		if [ $$TEST_EXIT -eq 0 ]; then \
+			echo "${GREEN}✓ E2E tests completed${RESET}"; \
+		else \
+			echo "${RED}✗ E2E tests failed${RESET}"; \
+			exit $$TEST_EXIT; \
+		fi; \
 	else \
-	  if [ -d "$(RECIPE_PATH)" ] && [ -f "$(RECIPE_PATH)/tests/e2e_test_cases.yml" ]; then \
-	    echo "${BLUE}Running E2E tests in $(RECIPE_PATH)...${RESET}"; \
-	    cd "$(RECIPE_PATH)" && $(PYTHON) -m rasa test e2e tests/e2e_test_cases.yml; \
-	  else \
-	    echo "${RED}No E2E test file found. Check recipe context.${RESET}"; \
-	    exit 1; \
-	  fi; \
+		if [ -d "$(RECIPE_PATH)" ] && [ -f "$(RECIPE_PATH)/tests/e2e_test_cases.yml" ]; then \
+			echo "${BLUE}Running E2E tests in $(RECIPE_PATH)...${RESET}"; \
+			cd "$(RECIPE_PATH)"; \
+			if [ ! -d "models" ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
+				echo "${YELLOW}No trained model found. Training model first...${RESET}"; \
+				$(PYTHON) -m rasa train; \
+			fi; \
+			echo "${BLUE}Starting action server in background...${RESET}"; \
+			$(PYTHON) -m rasa run actions > /dev/null 2>&1 & \
+			ACTION_PID=$$!; \
+			echo "Action server PID: $$ACTION_PID"; \
+			sleep 5; \
+			echo "${BLUE}Running E2E tests...${RESET}"; \
+			$(PYTHON) -m rasa test e2e tests/e2e_test_cases.yml; \
+			TEST_EXIT=$$?; \
+			echo "${BLUE}Stopping action server (PID: $$ACTION_PID)...${RESET}"; \
+			kill $$ACTION_PID 2>/dev/null || true; \
+			if [ $$TEST_EXIT -eq 0 ]; then \
+				echo "${GREEN}✓ E2E tests completed${RESET}"; \
+			else \
+				echo "${RED}✗ E2E tests failed${RESET}"; \
+				exit $$TEST_EXIT; \
+			fi; \
+		else \
+			echo "${RED}No E2E test file found. Check recipe context.${RESET}"; \
+			exit 1; \
+		fi; \
 	fi
 
 .PHONY: test-recipe
-test-recipe: ## Test specific recipe
+test-recipe: check-license ## Test specific recipe
 	@if [ ! -d "$(RECIPE_PATH)" ]; then \
-	  echo "${RED}Recipe '$(RECIPE_TARGET)' not found${RESET}"; \
-	  exit 1; \
+		echo "${RED}Recipe '$(RECIPE_TARGET)' not found${RESET}"; \
+		exit 1; \
 	fi
 	@echo "${BLUE}Testing recipe: $(RECIPE_TARGET)${RESET}"
-	@cd "$(RECIPE_PATH)" && \
+	@cd "$(RECIPE_PATH)"; \
 	if [ -f "tests/e2e_test_cases.yml" ]; then \
-	  echo "Running E2E tests..."; \
-	  $(PYTHON) -m rasa test e2e tests/e2e_test_cases.yml; \
+		echo "Checking for trained model..."; \
+		if [ ! -d "models" ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
+			echo "${YELLOW}No trained model found. Training model first...${RESET}"; \
+			$(PYTHON) -m rasa train; \
+		fi; \
+		echo "${BLUE}Starting action server in background...${RESET}"; \
+		$(PYTHON) -m rasa run actions > /dev/null 2>&1 & \
+		ACTION_PID=$$!; \
+		echo "Action server PID: $$ACTION_PID"; \
+		sleep 5; \
+		echo "Running E2E tests..."; \
+		$(PYTHON) -m rasa test e2e tests/e2e_test_cases.yml; \
+		TEST_EXIT=$$?; \
+		echo "${BLUE}Stopping action server (PID: $$ACTION_PID)...${RESET}"; \
+		kill $$ACTION_PID 2>/dev/null || true; \
+		if [ $$TEST_EXIT -eq 0 ]; then \
+			echo "${GREEN}✓ Tests passed for $(RECIPE_TARGET)${RESET}"; \
+		else \
+			echo "${RED}✗ Tests failed for $(RECIPE_TARGET)${RESET}"; \
+			exit $$TEST_EXIT; \
+		fi; \
 	else \
-	  echo "${YELLOW}No E2E tests found for this recipe${RESET}"; \
+		echo "${YELLOW}No E2E tests found for this recipe${RESET}"; \
+	fi
+
+.PHONY: test-all-recipes
+test-all-recipes: check-license ## Test all recipes with E2E tests
+	@echo "${BLUE}Testing all recipes...${RESET}"
+	@error_count=0; \
+	success_count=0; \
+	for level in $(RECIPE_LEVELS); do \
+		if [ -d "recipes/$$level" ]; then \
+			for recipe in recipes/$$level/*/; do \
+				if [ -d "$$recipe" ] && [ -f "$$recipe/tests/e2e_test_cases.yml" ]; then \
+					recipe_name=$$(basename "$$recipe"); \
+					echo ""; \
+					echo "${YELLOW}Testing $$level/$$recipe_name...${RESET}"; \
+					if RECIPE_TARGET=$$recipe_name RECIPE_LEVEL=$$level $(MAKE) test-recipe; then \
+						echo "${GREEN}✓ $$level/$$recipe_name passed${RESET}"; \
+						success_count=$$((success_count + 1)); \
+					else \
+						echo "${RED}✗ $$level/$$recipe_name failed${RESET}"; \
+						error_count=$$((error_count + 1)); \
+					fi; \
+				fi; \
+			done; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "${BLUE}Test Summary:${RESET}"; \
+	echo "  ${GREEN}Passed: $$success_count${RESET}"; \
+	echo "  ${RED}Failed: $$error_count${RESET}"; \
+	if [ $$error_count -eq 0 ]; then \
+		echo "${GREEN}✓ All recipe tests passed${RESET}"; \
+	else \
+		echo "${RED}✗ $$error_count recipe(s) failed tests${RESET}"; \
+		exit 1; \
 	fi
 
 # Development commands

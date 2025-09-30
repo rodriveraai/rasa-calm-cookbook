@@ -217,3 +217,9 @@ __marimo__/
 !.env.example
 
 .DS_Store
+
+# Ignore any .rasa directory everywhere
+**/.rasa/
+
+# Ignore any models directory everywhere
+**/models/
