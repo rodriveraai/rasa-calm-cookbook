@@ -1,3 +1,28 @@
+# Basic Tutorial Recipe Files
+
+## Directory Structure
+```
+recipes/level-1-basic/basic-tutorial/
+├── README.md
+├── pyproject.toml
+├── config-openai.yml
+├── config-azure.yml
+├── config-local.yml
+├── domain.yml
+├── endpoints.yml
+├── data/
+│   └── flows.yml
+├── actions/
+│   ├── __init__.py
+│   └── actions.py
+├── tests/
+│   └── e2e_test_cases.yml
+└── conversations/
+    └── sample_conversations.md
+```
+
+## README.md
+```markdown
 # Basic Tutorial - Money Transfer Assistant
 
 A foundational recipe that implements the official Rasa tutorial for building a money transfer assistant using CALM (Conversational AI with Language Models).

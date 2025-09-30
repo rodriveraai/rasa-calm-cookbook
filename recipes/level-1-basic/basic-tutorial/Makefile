@@ -52,8 +52,11 @@ help: ## Show this help message
 	@echo '  Actions:      ${GREEN}make run-actions${RESET}     - Start action server'
 	@echo ''
 	@echo '${YELLOW}Testing:${RESET}'
-	@echo '  Test E2E:     ${GREEN}make test-e2e${RESET}        - Run end-to-end tests'
+	@echo '  Test E2E:     ${GREEN}make test-e2e${RESET}        - Run E2E tests (auto-starts action server)'
+	@echo '  Test Manual:  ${GREEN}make test-e2e-manual${RESET} - Run tests (requires running action server)'
+	@echo '  Test Only:    ${GREEN}make test-e2e-skip-train${RESET} - Run tests without training'
 	@echo '  Validate:     ${GREEN}make validate${RESET}        - Validate configuration'
+	@echo '  Check Model:  ${GREEN}make check-model${RESET}     - Check if trained model exists'
 	@echo ''
 	@echo '${YELLOW}Utilities:${RESET}'
 	@echo '  Clean:        ${GREEN}make clean${RESET}           - Clean generated files'
@@ -195,6 +198,22 @@ status: ## Show environment status
 		echo "  ✗ Virtual environment not found at $(PYTHON)"; \
 		echo "    Run 'make setup' from repository root first"; \
 	fi
+	@echo ""
+	@echo "${YELLOW}Trained Models:${RESET}"
+	@if [ ! -d "models" ]; then \
+		echo "  ✗ No models directory"; \
+	elif [ -z "$(ls -A models 2>/dev/null)" ]; then \
+		echo "  ✗ Models directory is empty"; \
+	else \
+		latest_model=$(ls -t models/*.tar.gz 2>/dev/null | head -1); \
+		if [ -n "$latest_model" ]; then \
+			echo "  ✓ Latest model: $(basename $latest_model)"; \
+			echo "    Size: $(ls -lh "$latest_model" | awk '{print $5}')"; \
+			echo "    Modified: $(ls -lh "$latest_model" | awk '{print $6, $7, $8}')"; \
+		else \
+			echo "  ✗ No .tar.gz model files found"; \
+		fi; \
+	fi
 
 .PHONY: setup-recipe
 setup-recipe: check-venv setup-env ## Install recipe-specific dependencies
@@ -268,14 +287,54 @@ run-actions: ## Start action server
 	@echo "${BLUE}Starting action server...${RESET}"
 	$(RASA) run actions
 
-.PHONY: test-e2e
-test-e2e: check-env ## Run end-to-end tests
+.PHONY: test-e2e-manual
+test-e2e-manual: check-env ## Run end-to-end tests (requires running action server)
 	@echo "${BLUE}Running end-to-end tests...${RESET}"
-	@if [ -f "tests/e2e_test_cases.yml" ]; then \
-		$(RASA) test e2e tests/e2e_test_cases.yml; \
+	@if [ ! -f "tests/e2e_test_cases.yml" ]; then \
+		echo "${YELLOW}No E2E tests found${RESET}"; \
+		exit 0; \
+	fi
+	@if [ ! -d "models" ] || [ -z "$(ls -A models 2>/dev/null)" ]; then \
+		echo "${YELLOW}No trained model found. Training model first...${RESET}"; \
+		$(RASA) train; \
+	fi
+	@echo "${BLUE}Checking if action server is running...${RESET}"
+	@if ! curl -s http://localhost:5055/health > /dev/null 2>&1; then \
+		echo "${RED}Action server is not running${RESET}"; \
+		echo "Please start it in another terminal with: ${GREEN}make run-actions${RESET}"; \
+		echo "Or use: ${GREEN}make test-e2e${RESET} to auto-start action server"; \
+		exit 1; \
+	fi
+	@echo "${GREEN}✓ Action server is running${RESET}"
+	$(RASA) test e2e tests/e2e_test_cases.yml
+	@echo "${GREEN}✓ E2E tests completed${RESET}"
+
+.PHONY: test-e2e
+test-e2e: check-env ## Run end-to-end tests (auto-starts action server)
+	@echo "${BLUE}Running end-to-end tests...${RESET}"
+	@if [ ! -f "tests/e2e_test_cases.yml" ]; then \
+		echo "${YELLOW}No E2E tests found${RESET}"; \
+		exit 0; \
+	fi
+	@if [ ! -d "models" ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
+		echo "${YELLOW}No trained model found. Training model first...${RESET}"; \
+		$(RASA) train; \
+	fi
+	@echo "${BLUE}Starting action server in background...${RESET}"
+	@$(RASA) run actions > /dev/null 2>&1 & \
+	ACTION_PID=$$!; \
+	echo "Action server PID: $$ACTION_PID"; \
+	sleep 5; \
+	echo "${BLUE}Running E2E tests...${RESET}"; \
+	$(RASA) test e2e tests/e2e_test_cases.yml; \
+	TEST_EXIT=$$?; \
+	echo "${BLUE}Stopping action server (PID: $$ACTION_PID)...${RESET}"; \
+	kill $$ACTION_PID 2>/dev/null || true; \
+	if [ $$TEST_EXIT -eq 0 ]; then \
 		echo "${GREEN}✓ E2E tests completed${RESET}"; \
 	else \
-		echo "${YELLOW}No E2E tests found${RESET}"; \
+		echo "${RED}✗ E2E tests failed${RESET}"; \
+		exit $$TEST_EXIT; \
 	fi
 
 .PHONY: validate
